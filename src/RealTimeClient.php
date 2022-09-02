@@ -48,11 +48,18 @@ class RealTimeClient extends ApiClient
     protected $users = [];
 
     /**
+     * @var array<Conversation> A map of conversations..
+     */
+    protected $conversations = [];
+
+    /**
+     * @deprecated use $conversations instead (contains channels and groups).
      * @var array A map of channels.
      */
     protected $channels = [];
 
     /**
+     * @deprecated use $conversations instead (contains channels and groups).
      * @var array A map of groups.
      */
     protected $groups = [];
@@ -63,6 +70,7 @@ class RealTimeClient extends ApiClient
     protected $dms = [];
 
     /**
+     * @deprecated Slack API does not support listing of bots anymore.
      * @var array A map of bots.
      */
     protected $bots = [];
@@ -93,7 +101,7 @@ class RealTimeClient extends ApiClient
         $deferred = new Promise\Deferred();
 
         // Request a real-time connection...
-        $this->apiCall('rtm.start')
+        $this->apiCall('rtm.connect')
 
         // then connect to the socket...
         ->then(function (Payload $response) {
@@ -103,31 +111,6 @@ class RealTimeClient extends ApiClient
 
             // Populate self user.
             $this->users[$responseData['self']['id']] = new User($this, $responseData['self']);
-
-            // populate list of users
-            foreach ($responseData['users'] as $data) {
-                $this->users[$data['id']] = new User($this, $data);
-            }
-
-            // populate list of channels
-            foreach ($responseData['channels'] as $data) {
-                $this->channels[$data['id']] = new Channel($this, $data);
-            }
-
-            // populate list of groups
-            foreach ($responseData['groups'] as $data) {
-                $this->groups[$data['id']] = new Group($this, $data);
-            }
-
-            // populate list of dms
-            foreach ($responseData['ims'] as $data) {
-                $this->dms[$data['id']] = new DirectMessageChannel($this, $data);
-            }
-
-            // populate list of bots
-            foreach ($responseData['bots'] as $data) {
-                $this->bots[$data['id']] = new Bot($this, $data);
-            }
 
             // initiate the websocket connection
             // write PHPWS things to the existing logger
@@ -143,6 +126,49 @@ class RealTimeClient extends ApiClient
                 'Could not connect to Slack API: '. $exception->getMessage(),
                 $exception->getCode()
             ));
+        })
+
+        // then load additional data from API: users, ...
+        ->then(function() {
+            $this->apiCall('users.list')->then(function(Payload $response) {
+                $responseData = $response->getData();
+                // populate list of users
+                foreach ($responseData['members'] as $data) {
+                    $this->users[$data['id']] = new User($this, $data);
+                }
+            }, function($exception) use ($deferred) {
+                $deferred->reject(new ConnectionException(
+                    'Could not connect to Slack API: '. $exception->getMessage(),
+                    $exception->getCode()
+                ));
+            });
+        })
+
+        // and conversations.
+        ->then(function() {
+            $this->apiCall('conversations.list')->then(function(Payload $response) {
+                $responseData = $response->getData();
+                // populate list of conversations
+                foreach ($responseData['channels'] as $data) {
+                    $this->conversations[$data['id']] = new Conversation($this, $data);
+                    // for backwards compatibility, distinguish channels, groups and direct messages:
+                    if ($data['is_channel']) {
+                        $this->channels[$data['id']] = new Channel($this, $data);
+                    }
+                    if ($data['is_group']) {
+                        $this->groups[$data['id']] = new Group($this, $data);
+                    }
+                    if ($data['is_im']) {
+                        $this->dms[$data['id']] = new DirectMessageChannel($this, $data);
+                    }
+                }
+
+            }, function($exception) use ($deferred) {
+                $deferred->reject(new ConnectionException(
+                    'Could not connect to Slack API: '. $exception->getMessage(),
+                    $exception->getCode()
+                ));
+            });
         })
 
         // then wait for the connection to be ready.
@@ -301,6 +327,7 @@ class RealTimeClient extends ApiClient
     /**
      * Gets all bots in the Slack team.
      *
+     * @deprecated Slack API does not support listing of bots anymore.
      * @return \React\Promise\PromiseInterface A promise for an array of bots.
      */
     public function getBots()
@@ -317,6 +344,7 @@ class RealTimeClient extends ApiClient
      *
      * @param string $id A bot ID.
      *
+     * @todo use bots.info API to fetch Bot info on demand.
      * @return \React\Promise\PromiseInterface A promise for a bot object.
      */
     public function getBotById($id)
