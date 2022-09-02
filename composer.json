@@ -1,5 +1,5 @@
 {
-    "name": "mpociot/slack-client",
+    "name": "schmengler/slack-client",
     "keywords": ["slack", "api", "realtime"],
     "license": "MIT",
     "description": "A better Slack client, with RTM API support",
@@ -7,6 +7,9 @@
         "name": "Stephen Coakley",
         "email": "me@stephencoakley.com"
     }],
+    "provide": {
+        "mpociot/slack-client": "1.2.0"
+    },
     "require": {
         "php": ">=5.5",
         "mpociot/phpws": "^2.0",
