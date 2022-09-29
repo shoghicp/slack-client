@@ -1,5 +1,5 @@
 {
-    "name": "schmengler/slack-client",
+    "name": "rodrigolinsr/slack-client",
     "keywords": ["slack", "api", "realtime"],
     "license": "MIT",
     "description": "A better Slack client, with RTM API support",
