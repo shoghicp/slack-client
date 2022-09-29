@@ -128,6 +128,19 @@ class RealTimeClient extends ApiClient
             ));
         })
 
+        // then wait for the connection to be ready.
+        ->then(function () use ($deferred) {
+            $this->once('hello', function () use ($deferred) {
+                $deferred->resolve();
+            });
+
+            $this->once('error', function ($data) use ($deferred) {
+                $deferred->reject(new ConnectionException(
+                    'Could not connect to WebSocket: '.$data['error']['msg'],
+                    $data['error']['code']));
+            });
+        })
+            
         // then load additional data from API: users, ...
         ->then(function() {
             $this->apiCall('users.list')->then(function(Payload $response) {
@@ -168,19 +181,6 @@ class RealTimeClient extends ApiClient
                     'Could not connect to Slack API: '. $exception->getMessage(),
                     $exception->getCode()
                 ));
-            });
-        })
-
-        // then wait for the connection to be ready.
-        ->then(function () use ($deferred) {
-            $this->once('hello', function () use ($deferred) {
-                $deferred->resolve();
-            });
-
-            $this->once('error', function ($data) use ($deferred) {
-                $deferred->reject(new ConnectionException(
-                    'Could not connect to WebSocket: '.$data['error']['msg'],
-                    $data['error']['code']));
             });
         });
 
