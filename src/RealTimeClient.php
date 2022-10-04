@@ -142,19 +142,27 @@ class RealTimeClient extends ApiClient
         })
             
         // then load additional data from API: users, ...
+        // then load additional data from API: users, ...
         ->then(function() use ($deferred) {
-            $this->apiCall('users.list')->then(function(Payload $response) {
-                $responseData = $response->getData();
-                // populate list of users
-                foreach ($responseData['members'] as $data) {
-                    $this->users[$data['id']] = new User($this, $data);
-                }
-            }, function($exception) use ($deferred) {
-                $deferred->reject(new ConnectionException(
-                    'Could not connect to Slack API: '. $exception->getMessage(),
-                    $exception->getCode()
-                ));
-            });
+            $getUsers = function(array $params = []) use ($deferred, &$getUsers){
+                $this->apiCall('users.list', $params)->then(function(Payload $response) use (&$getUsers){
+                    $responseData = $response->getData();
+                    // populate list of users
+                    foreach ($responseData['members'] as $data) {
+                        $this->users[$data['id']] = new User($this, $data);
+                    }
+                    
+                    if(isset($responseData["response_metadata"]["next_cursor"]) and $responseData["response_metadata"]["next_cursor"] !== ""){
+                        $getUsers(["cursor" => $responseData["response_metadata"]["next_cursor"]]);
+                    }
+                }, function($exception) use ($deferred) {
+                    $deferred->reject(new ConnectionException(
+                        'Could not connect to Slack API: '. $exception->getMessage(),
+                        $exception->getCode()
+                    ));
+                });
+            };
+            $getUsers();
         })
 
         // and conversations.
