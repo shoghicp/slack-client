@@ -142,7 +142,7 @@ class RealTimeClient extends ApiClient
         })
             
         // then load additional data from API: users, ...
-        ->then(function() {
+        ->then(function() use ($deferred) {
             $this->apiCall('users.list')->then(function(Payload $response) {
                 $responseData = $response->getData();
                 // populate list of users
@@ -158,7 +158,7 @@ class RealTimeClient extends ApiClient
         })
 
         // and conversations.
-        ->then(function() {
+        ->then(function() use ($deferred) {
             $this->apiCall('conversations.list')->then(function(Payload $response) {
                 $responseData = $response->getData();
                 // populate list of conversations
